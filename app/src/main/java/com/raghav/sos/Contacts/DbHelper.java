@@ -1,0 +1,120 @@
+package com.raghav.sos.Contacts;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Log;
+
+import androidx.annotation.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class DbHelper extends SQLiteOpenHelper {
+    // Database Version
+    private static final int DATABASE_VERSION = 1;
+
+    // Database Name
+    private static final String DATABASE_NAME = "contactdata";
+
+    // Country table name
+    private static final String TABLE_NAME= "contacts";
+
+    // Country Table Columns names
+    private static final String KEY_ID = "id";
+    private static final String NAME = "Name";
+    private static final String PHONENO = "PhoneNo";
+
+
+    public DbHelper(Context context){
+        super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+
+        String CREATE_COUNTRY_TABLE = "CREATE TABLE " + TABLE_NAME + "("
+                + KEY_ID + " INTEGER PRIMARY KEY," + NAME + " TEXT,"
+                + PHONENO + " TEXT" + ")";
+        db.execSQL(CREATE_COUNTRY_TABLE);
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase sqLiteDatabase, int i, int i1) {
+
+    }
+
+    public void addcontact(ContactModel contact){
+        SQLiteDatabase db=this.getWritableDatabase();
+        ContentValues c=new ContentValues();
+        c.put(NAME,contact.getName());
+        c.put(PHONENO,contact.getPhoneNo());
+        db.insert(TABLE_NAME,null,c);
+        db.close();
+    }
+
+    public ContactModel getContact(int id){
+        SQLiteDatabase db = this.getReadableDatabase();
+
+        Cursor cursor = db.query(TABLE_NAME, new String[] { KEY_ID,
+                        NAME, PHONENO}, KEY_ID + "=?",
+                new String[] { String.valueOf(id) }, null, null, null, null);
+        if (cursor != null)
+            cursor.moveToFirst();
+
+        // return country
+        return new ContactModel(cursor.getInt(0),cursor.getString(1), cursor.getString(2));
+    }
+
+    public List<ContactModel> getAllContacts(){
+        List<ContactModel> list=new ArrayList<>();
+        String query="SELECT * FROM "+TABLE_NAME;
+        SQLiteDatabase db=this.getReadableDatabase();
+        Cursor c=db.rawQuery(query,null);
+        if(c.moveToFirst()) {
+            do {
+                Log.d("Count:",String.valueOf(c.getInt(0)));
+                list.add(new ContactModel(c.getInt(0),c.getString(1),c.getString(2)));
+
+            } while (c.moveToNext());
+        }
+        return list;
+    }
+
+    public int updateContact(ContactModel contact){
+        SQLiteDatabase db=this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(NAME, contact.getName());
+        values.put(PHONENO, contact.getPhoneNo());
+
+        // updating row
+        return db.update(TABLE_NAME, values, KEY_ID + " = ?",
+                new String[] { String.valueOf(contact.getId()) });
+    }
+    public int count(){
+        int count=0;
+        String query="SELECT COUNT(*) FROM "+TABLE_NAME;
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c=db.rawQuery(query,null);
+        if(c.getCount()>0){
+            c.moveToFirst();
+            count=c.getInt(0);
+        }
+        c.close();
+        return count;
+    }
+
+    // Deleting single country
+    public void deleteContact(ContactModel contact) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int i=db.delete(TABLE_NAME,KEY_ID + " = ?",
+                new String[] { String.valueOf(contact.getId()) });
+
+        Log.d("TAG",String.valueOf(i));
+
+        db.close();
+    }
+}
+
