@@ -17,6 +17,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.provider.ContactsContract;
 import android.provider.Settings;
 import android.util.Log;
@@ -39,6 +40,7 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final int IGNORE_BATTERY_OPTIMIZATION_REQUEST = 1002;
     private static final int PICK_CONTACT = 1;
     Button button1;
     ListView listView;
@@ -53,8 +55,17 @@ public class MainActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)== PackageManager.PERMISSION_DENIED) {
                 requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.SEND_SMS,Manifest.permission.READ_CONTACTS,Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 100);
+
             }
         }
+
+        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())) {
+                askIgnoreOptimization();
+            }
+        }
+
         SensorService sensorService = new SensorService();
         Intent intent = new Intent(this, sensorService.getClass());
         if (!isMyServiceRunning(sensorService.getClass())) {
@@ -180,6 +191,27 @@ public class MainActivity extends AppCompatActivity {
                     }
                     break;
         }
+    }
+
+    private void askIgnoreOptimization() {
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            startActivityForResult(intent, IGNORE_BATTERY_OPTIMIZATION_REQUEST);
+        }
+
+
+        /*
+        Yes it works perfectly :D But only thing is that the app will be rejected from playstore and you'll lose all your business! – Rohit TP Apr 14 '20 at 6:25
+
+        @RohitTP Can you please elaborate why adding this check in the app makes it a candidate for a rejection from PlayStore? – sud007 Apr 26 '20 at 18:09
+
+        Well I guess, as I have checked. Adding permission in the manifest is not required if you just want to check battery optimization and display a message to the user. – sud007 Apr 26 '20 at 18:37
+
+        @sud007 'ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS' is a dangerous permission. Google doesn't like having apps having this anywhere inside their code(developer.android.com/training/monitoring-device-state/…). This permission & action is a bit dangerous since if we add this we allow the app to directly show an android pop up asking user to turn off battery optimizations for this app. Instead, what you should do is have 'ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS' which takes user to list of apps
+        where he has to search for your app & disable battery optimisations manually.
+         */
     }
 
     public boolean checkAccessibilityPermission () {
