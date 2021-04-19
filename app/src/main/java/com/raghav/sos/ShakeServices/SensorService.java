@@ -48,9 +48,6 @@ public class SensorService extends Service {
     private Sensor mAccelerometer;
     private ShakeDetector mShakeDetector;
 
-    private OpenCellID openCellID;
-    GsmCellLocation loc;
-
     public SensorService(){
     }
 
@@ -71,7 +68,7 @@ public class SensorService extends Service {
     public void onCreate() {
         super.onCreate();
 
-
+        //start the foreground service
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             startMyOwnForeground();
         else
@@ -87,67 +84,43 @@ public class SensorService extends Service {
             @SuppressLint("MissingPermission")
             @Override
             public void onShake(int count) {
-                //Location loc=getLocation();
+                //check if the user has shaked the phone for 3 time in a row
                 if(count==3) {
-                    Log.d("Check:","Count=3");
+                  //vibrate the phone
                     vibrate();
 
-/* WORKING
-                    LocationRequest locationRequest=new LocationRequest();
-                    locationRequest.setInterval(10000);
-                    locationRequest.setFastestInterval(5000);
-                    locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-
-                    FusedLocationProviderClient fused=LocationServices.getFusedLocationProviderClient(SensorService.this);
-                    fused.requestLocationUpdates(locationRequest, new LocationCallback() {
-                        @Override
-                        public void onLocationResult(@NonNull LocationResult locationResult) {
-                            super.onLocationResult(locationResult);
-                            Location location=locationResult.getLastLocation();
-                            if(location!=null){
-                                Log.d("Check: ",String.valueOf(location.getLatitude()));
-                            }else{
-                                Log.d("Check: ","Locationnull");
-                            }
-                        }
-                    },null);
-*/
-
+                    //create FusedLocationProviderClient to get the user location
                     FusedLocationProviderClient fusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplicationContext());
-                    // WORKING WITH GPS ON (IN LOCK SCREEN TOO)
+                    //use the PRIORITY_BALANCED_POWER_ACCURACY so that the service doesn't use unnecessary power via GPS
+                    //it will only use GPS at this very moment
                     fusedLocationClient.getCurrentLocation(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY, new CancellationToken() {
                         @Override
                         public boolean isCancellationRequested() {
-                            Log.d("Check:","Cancel req");
                             return false;
                         }
-
                         @NonNull
                         @Override
                         public CancellationToken onCanceledRequested(@NonNull OnTokenCanceledListener onTokenCanceledListener) {
-                            Log.d("Check:","onCanceled");
-                           // getOpenCellLocation();
                             return null;
                         }
                     }).addOnSuccessListener(new OnSuccessListener<Location>() {
                         @Override
                         public void onSuccess(Location location) {
+                            //check if location is null
+                            //for both the cases we will create different messages
                             if(location!=null){
-                                Log.d("Check:","Lat:"+location.getLatitude());
 
-
-                                SmsManager smsManager = SmsManager.getDefault();
-
+                               //get the SMSManager
+                               SmsManager smsManager = SmsManager.getDefault();
+                                //get the list of all the contacts in Database
                                 DbHelper db=new DbHelper(SensorService.this);
                                 List<ContactModel> list=db.getAllContacts();
+                                //send SMS to each contact
                                 for(ContactModel c: list){
                                     String message = "Hey, "+c.getName()+"I am in DANGER, i need help. Please urgently reach me out. Here are my coordinates.\n "+"http://maps.google.com/?q=" + location.getLatitude() + "," + location.getLongitude();
                                     smsManager.sendTextMessage(c.getPhoneNo(), null, message, null, null);
                                 }
-                                //  smsManager.sendTextMessage("+917877047794", null, "Can't Fetch Location.", null, null);
-                                Log.d("Check:","Message Sent");
                             }else{
-                                Log.d("Check:","Location null");
                                 String message= "I am in DANGER, i need help. Please urgently reach me out.\n"+"GPS was turned off.Couldn't find location. Call your nearest Police Station.";
                                 SmsManager smsManager = SmsManager.getDefault();
                                 DbHelper db=new DbHelper(SensorService.this);
@@ -170,47 +143,19 @@ public class SensorService extends Service {
                             } }
                     });
 
-
-//GIVING NULL EVEN WHEN GPS ON
-                 /*
-                   fusedLocationClient.getLastLocation().addOnSuccessListener(new OnSuccessListener<Location>() {
-                        @Override
-                        public void onSuccess(Location location) {
-                            Log.d("Check: ","OnSuccess");
-                            if (location != null) {
-                                String message = "http://maps.google.com/?q=" + location.getLatitude() + "," + location.getLongitude();
-
-                                SmsManager smsManager = SmsManager.getDefault();
-                                smsManager.sendTextMessage("+918619146262", null, message, null, null);
-                                smsManager.sendTextMessage("+917877047794", null, "Can't Fetch Location.", null, null);
-                                Log.d("Check:","Message Sent");
-                            }else{
-                                Log.d("Check: ","Location Null");
-
-                            }
-                        }
-                    }).addOnFailureListener(new OnFailureListener() {
-                        @Override
-                        public void onFailure(@NonNull Exception e) {
-                                Log.d("Check: ","OnFailure");
-                                SmsManager smsManager = SmsManager.getDefault();
-                                smsManager.sendTextMessage("+918619146262", null, "Can't Fetch Location.", null, null);
-                            smsManager.sendTextMessage("+917877047794", null, "Can't Fetch Location.", null, null);
-                                Toast.makeText(getApplicationContext(), "SMS SENT",
-                                        Toast.LENGTH_LONG).show();
-                        }
-                    });
-*/
-
                 }
             }
         });
+
+        //register the listener
         mSensorManager.registerListener(mShakeDetector, mAccelerometer, SensorManager.SENSOR_DELAY_UI);
     }
 
+    //method to vibrate the phone
     public void vibrate(){
         final Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         VibrationEffect vibEff;
+        //Android Q and above have some predefined vibrating patterns
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             vibEff=VibrationEffect.createPredefined(VibrationEffect.EFFECT_DOUBLE_CLICK);
             vibrator.cancel();
@@ -223,6 +168,10 @@ public class SensorService extends Service {
 
     }
 
+    //For Build versions higher than Android Oreo, we launch
+    // a foreground service in a different way. This is due to the newly
+    // implemented strict notification rules, which require us to identify
+    // our own notification channel in order to view them correctly.
     @RequiresApi(Build.VERSION_CODES.O)
     private void startMyOwnForeground()
     {
@@ -252,60 +201,13 @@ public class SensorService extends Service {
 
     @Override
     public void onDestroy() {
-        //mSensorManager.unregisterListener(mShakeDetector);
 
-        Log.d("Check: ","Destroyed");
+        //create an Intent to call the Broadcast receiver
         Intent broadcastIntent = new Intent();
         broadcastIntent.setAction("restartservice");
         broadcastIntent.setClass(this, ReactivateService.class);
         this.sendBroadcast(broadcastIntent);
-
-
         super.onDestroy();
-    }
-
-
-    @Override
-    public void onTaskRemoved(Intent rootIntent) {
-
-        Log.d("Check: ","Removed");
-        super.onTaskRemoved(rootIntent);
-
-    }
-
-
-    public void getOpenCellLocation(){
-        TelephonyManager tm = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // for ActivityCompat#requestPermissions for more details.
-            return;
-        }
-        loc = (GsmCellLocation) tm.getCellLocation();
-        String networkOperator = tm.getNetworkOperator();
-        String mcc = networkOperator.substring(0, 3);
-        String mnc = networkOperator.substring(3);
-
-        openCellID = new OpenCellID(this);
-        openCellID.setMcc(mcc);
-        openCellID.setMnc(mnc);
-        int cellid = loc.getCid();
-        int lac = loc.getLac();
-        openCellID.setCallID(cellid);
-        openCellID.setCallLac(lac);
-
-            openCellID.GetOpenCellID();
-
-        SmsManager smsManager = SmsManager.getDefault();
-
-        DbHelper db=new DbHelper(SensorService.this);
-        List<ContactModel> list=db.getAllContacts();
-        for(ContactModel c: list){
-            String message = "Hey, "+c.getName()+"I am in DANGER, i need help. Please urgently reach me out. Here are my nearest mobile tower coordinates.\n "+"http://maps.google.com/?q=" + openCellID.latitude + "," + openCellID.longitude;
-            smsManager.sendTextMessage(c.getPhoneNo(), null, message, null, null);
-        }
-        //  smsManager.sendTextMessage("+917877047794", null, "Can't Fetch Location.", null, null);
-        Log.d("Check:","Message Sent via OpenCell");
-
     }
 
 }

@@ -29,22 +29,6 @@
             android:enabled="true"
             android:exported="true" />
 
-        <service android:name=".SOSService"
-            android:enabled="true"
-            android:exported="true"
-            android:foregroundServiceType="location"/>
-
-        <service
-            android:name=".AccessibilityKeyDetector"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_layout" />
-        </service>
 
         <activity android:name=".MainActivity">
             <intent-filter>

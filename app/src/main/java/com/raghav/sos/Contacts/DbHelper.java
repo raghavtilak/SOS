@@ -35,6 +35,7 @@ public class DbHelper extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase db) {
 
+        //create the table for the first time
         String CREATE_COUNTRY_TABLE = "CREATE TABLE " + TABLE_NAME + "("
                 + KEY_ID + " INTEGER PRIMARY KEY," + NAME + " TEXT,"
                 + PHONENO + " TEXT" + ")";
@@ -46,6 +47,7 @@ public class DbHelper extends SQLiteOpenHelper {
 
     }
 
+    //method to add the contact
     public void addcontact(ContactModel contact){
         SQLiteDatabase db=this.getWritableDatabase();
         ContentValues c=new ContentValues();
@@ -55,19 +57,7 @@ public class DbHelper extends SQLiteOpenHelper {
         db.close();
     }
 
-    public ContactModel getContact(int id){
-        SQLiteDatabase db = this.getReadableDatabase();
-
-        Cursor cursor = db.query(TABLE_NAME, new String[] { KEY_ID,
-                        NAME, PHONENO}, KEY_ID + "=?",
-                new String[] { String.valueOf(id) }, null, null, null, null);
-        if (cursor != null)
-            cursor.moveToFirst();
-
-        // return country
-        return new ContactModel(cursor.getInt(0),cursor.getString(1), cursor.getString(2));
-    }
-
+    //method to retrieve all the contacts in List
     public List<ContactModel> getAllContacts(){
         List<ContactModel> list=new ArrayList<>();
         String query="SELECT * FROM "+TABLE_NAME;
@@ -75,7 +65,7 @@ public class DbHelper extends SQLiteOpenHelper {
         Cursor c=db.rawQuery(query,null);
         if(c.moveToFirst()) {
             do {
-                Log.d("Count:",String.valueOf(c.getInt(0)));
+
                 list.add(new ContactModel(c.getInt(0),c.getString(1),c.getString(2)));
 
             } while (c.moveToNext());
@@ -83,16 +73,7 @@ public class DbHelper extends SQLiteOpenHelper {
         return list;
     }
 
-    public int updateContact(ContactModel contact){
-        SQLiteDatabase db=this.getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put(NAME, contact.getName());
-        values.put(PHONENO, contact.getPhoneNo());
-
-        // updating row
-        return db.update(TABLE_NAME, values, KEY_ID + " = ?",
-                new String[] { String.valueOf(contact.getId()) });
-    }
+    //get the count of data, this will allow user to not add more that five contacts in database
     public int count(){
         int count=0;
         String query="SELECT COUNT(*) FROM "+TABLE_NAME;
@@ -111,8 +92,6 @@ public class DbHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getWritableDatabase();
         int i=db.delete(TABLE_NAME,KEY_ID + " = ?",
                 new String[] { String.valueOf(contact.getId()) });
-
-        Log.d("TAG",String.valueOf(i));
 
         db.close();
     }

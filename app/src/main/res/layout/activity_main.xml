@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:layout_margin="12dp"
         android:background="#0F9D58"
-        android:text="Add Contact "
+        android:text="Add Emergency Contact "
         android:textColor="#FFFFFF" />
 
     <ListView

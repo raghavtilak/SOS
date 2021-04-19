@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
@@ -42,6 +43,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int IGNORE_BATTERY_OPTIMIZATION_REQUEST = 1002;
     private static final int PICK_CONTACT = 1;
+
+    //create instances of various classes to be used
     Button button1;
     ListView listView;
     DbHelper db;
@@ -52,13 +55,21 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        //check for runtime permissions
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)== PackageManager.PERMISSION_DENIED) {
-                requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.SEND_SMS,Manifest.permission.READ_CONTACTS,Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 100);
-
+                requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.SEND_SMS,Manifest.permission.READ_CONTACTS}, 100);
             }
         }
 
+        //this is a special permission required only by devices using
+        //Android Q and above. The Access Background Permission is responsible
+        //for populating the dialog with "ALLOW ALL THE TIME" option
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 100);
+        }
+
+        //check for BatteryOptimization,
         PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())) {
@@ -66,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        //start the service
         SensorService sensorService = new SensorService();
         Intent intent = new Intent(this, sensorService.getClass());
         if (!isMyServiceRunning(sensorService.getClass())) {
@@ -79,37 +91,7 @@ public class MainActivity extends AppCompatActivity {
         list=db.getAllContacts();
         customAdapter=new CustomAdapter(this,list);
         listView.setAdapter(customAdapter);
-/*
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
 
-                new MaterialAlertDialogBuilder(MainActivity.this)
-                        .setTitle("Remove/Update Contact")
-                        .setMessage("Are you sure want to remove this contact?")
-                        .setPositiveButton("DELETE", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialogInterface, int i) {
-                                Log.d("Position:",String.valueOf(i));
-                                db.deleteContact(i);
-
-                                list=db.getAllContacts();
-                                customAdapter.notifyDataSetChanged();
-                                Toast.makeText(MainActivity.this, "Contact removed!", Toast.LENGTH_SHORT).show();
-                            }
-                        })
-                        .setNegativeButton("CHANGE", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialogInterface, int i) {
-
-                            }
-                        })
-                        .show();
-
-
-            }
-        });
-       */
         button1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -124,6 +106,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    //method to check if the service is running
     private boolean isMyServiceRunning(Class<?> serviceClass) {
         ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
         for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
@@ -142,8 +125,6 @@ public class MainActivity extends AppCompatActivity {
         broadcastIntent.setAction("restartservice");
         broadcastIntent.setClass(this, ReactivateService.class);
         this.sendBroadcast(broadcastIntent);
-
-        Log.i("MAINACT", "onDestroy!");
         super.onDestroy();
     }
 
@@ -151,8 +132,7 @@ public class MainActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode==100){
-            if(grantResults[0]==PackageManager.PERMISSION_DENIED || grantResults[1]==PackageManager.PERMISSION_DENIED
-                    || grantResults[2]==PackageManager.PERMISSION_DENIED || grantResults[3]==PackageManager.PERMISSION_DENIED){
+            if(grantResults[0]==PackageManager.PERMISSION_DENIED){
                 Toast.makeText(this, "Permissions Denied!\n Can't use the App!", Toast.LENGTH_SHORT).show();
             }
         }
@@ -162,6 +142,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
+        //get the contact from the PhoneBook of device
         switch (requestCode) {
             case (PICK_CONTACT):
                     if (resultCode == Activity.RESULT_OK) {
@@ -193,44 +174,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //this method prompts the user to remove any battery optimisation constraints from the App
     private void askIgnoreOptimization() {
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            @SuppressLint("BatteryLife") Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
             intent.setData(Uri.parse("package:" + getPackageName()));
             startActivityForResult(intent, IGNORE_BATTERY_OPTIMIZATION_REQUEST);
         }
 
-
-        /*
-        Yes it works perfectly :D But only thing is that the app will be rejected from playstore and you'll lose all your business! – Rohit TP Apr 14 '20 at 6:25
-
-        @RohitTP Can you please elaborate why adding this check in the app makes it a candidate for a rejection from PlayStore? – sud007 Apr 26 '20 at 18:09
-
-        Well I guess, as I have checked. Adding permission in the manifest is not required if you just want to check battery optimization and display a message to the user. – sud007 Apr 26 '20 at 18:37
-
-        @sud007 'ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS' is a dangerous permission. Google doesn't like having apps having this anywhere inside their code(developer.android.com/training/monitoring-device-state/…). This permission & action is a bit dangerous since if we add this we allow the app to directly show an android pop up asking user to turn off battery optimizations for this app. Instead, what you should do is have 'ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS' which takes user to list of apps
-        where he has to search for your app & disable battery optimisations manually.
-         */
     }
-
-    public boolean checkAccessibilityPermission () {
-            int accessEnabled = 0;
-            try {
-                accessEnabled = Settings.Secure.getInt(this.getContentResolver(), Settings.Secure.ACCESSIBILITY_ENABLED);
-            } catch (Settings.SettingNotFoundException e) {
-                e.printStackTrace();
-            }
-            if (accessEnabled == 0) {
-                /** if not construct intent to request permission */
-                Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                /** request permission via start activity for result */
-                startActivity(intent);
-                return false;
-            } else {
-                return true;
-            }
-        }
 
     }
